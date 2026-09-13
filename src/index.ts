@@ -23,6 +23,9 @@ import {
 import friendRoutes
 	from './routes/friend_routes';
 
+import recommendationRoutes
+	from './routes/recommendation_routes';
+
 // ============================================================
 // Service Errors
 // ============================================================
@@ -38,6 +41,10 @@ import {
 import {
 	FriendServiceError,
 } from './services/friend_service';
+
+import {
+	RecommendationServiceError,
+} from './services/recommendation_service';
 
 // ============================================================
 // Utils
@@ -69,7 +76,7 @@ app.route(
 );
 
 /**
- * 用户资料：
+ * 用户模块：
  *
  * /api/users/*
  */
@@ -98,6 +105,16 @@ app.route(
 	friendRoutes,
 );
 
+/**
+ * 推荐系统：
+ *
+ * /api/recommendations/*
+ */
+app.route(
+	'/api/recommendations',
+	recommendationRoutes,
+);
+
 // ============================================================
 // 404
 // ============================================================
@@ -115,6 +132,19 @@ app.notFound(() => {
 
 app.onError(
 	(error) => {
+		/**
+		 * 推荐系统业务错误。
+		 */
+		if (
+			error instanceof
+			RecommendationServiceError
+		) {
+			return errorResponse(
+				error.message,
+				error.status,
+			);
+		}
+
 		/**
 		 * 好友模块业务错误。
 		 */
@@ -155,9 +185,7 @@ app.onError(
 		}
 
 		/**
-		 * 未知错误：
-		 * 打日志，但不要把内部错误细节
-		 * 直接返回给客户端。
+		 * 未知异常不要直接返回给客户端。
 		 */
 		console.error(
 			error,
