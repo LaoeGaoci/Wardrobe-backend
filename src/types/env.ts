@@ -1,13 +1,16 @@
 export interface Env {
-  DB: D1Database;
-  AUTH_SECRET: string;
+	DB: D1Database;
+
+	IMAGES: R2Bucket;
+
+	AUTH_SECRET: string;
 }
 
 export interface AppVariables {
-  userId: string;
+	userId: string;
 }
 
 export type AppEnv = {
-  Bindings: Env;
-  Variables: AppVariables;
+	Bindings: Env;
+	Variables: AppVariables;
 };

@@ -1,60 +1,95 @@
 import { Hono } from 'hono';
 
 import type {
-  AppEnv,
+	AppEnv,
 } from './types/env';
 
 import authRoutes
-  from './routes/auth_routes';
+	from './routes/auth_routes';
 
 import userRoutes
-  from './routes/user_routes';
+	from './routes/user_routes';
 
 import {
-  UserServiceError,
+	clothingRoutes,
+} from './routes/clothing_routes';
+
+import {
+	UserServiceError,
 } from './services/user_service';
 
 import {
-  errorResponse,
+	ClothingServiceError,
+} from './services/clothing_service';
+
+import {
+	errorResponse,
 } from './utils/response';
 
 const app =
-  new Hono<AppEnv>();
+	new Hono<AppEnv>();
+
+// ============================================================
+// Routes
+// ============================================================
 
 app.route(
-  '/api/auth',
-  authRoutes,
+	'/api/auth',
+	authRoutes,
 );
 
 app.route(
-  '/api/users',
-  userRoutes,
+	'/api/users',
+	userRoutes,
 );
+
+app.route(
+	'/api/clothing',
+	clothingRoutes,
+);
+
+// ============================================================
+// 404
+// ============================================================
 
 app.notFound(() => {
-  return errorResponse(
-    'Not found',
-    404,
-  );
+	return errorResponse(
+		'Not found',
+		404,
+	);
 });
 
+// ============================================================
+// Error handler
+// ============================================================
+
 app.onError((error) => {
-  if (
-    error instanceof
-    UserServiceError
-  ) {
-    return errorResponse(
-      error.message,
-      error.status,
-    );
-  }
+	if (
+		error instanceof
+		ClothingServiceError
+	) {
+		return errorResponse(
+			error.message,
+			error.status,
+		);
+	}
 
-  console.error(error);
+	if (
+		error instanceof
+		UserServiceError
+	) {
+		return errorResponse(
+			error.message,
+			error.status,
+		);
+	}
 
-  return errorResponse(
-    'Internal server error',
-    500,
-  );
+	console.error(error);
+
+	return errorResponse(
+		'Internal server error',
+		500,
+	);
 });
 
 export default app;
