@@ -222,4 +222,41 @@ export class UserRepository {
       .bind(id)
       .run();
   }
+    /**
+   * 查询当前用户所有衣物对应的 R2 object key。
+   *
+   * 注销账户时必须在删除 users row 之前调用，
+   * 因为 users 删除以后 clothing 会通过
+   * ON DELETE CASCADE 一并删除。
+   */
+  async findOwnedClothingImageKeys(
+    userId: string,
+  ): Promise<string[]> {
+    const result = await this.db
+      .prepare(
+        `
+        SELECT image_url
+        FROM clothing
+        WHERE owner_id = ?
+          AND image_url IS NOT NULL
+          AND image_url != ''
+        `,
+      )
+      .bind(userId)
+      .all<{
+        image_url: string;
+      }>();
+
+    return (
+      result.results ?? []
+    )
+      .map(
+        (row) =>
+          row.image_url,
+      )
+      .filter(
+        (key) =>
+          key.length > 0,
+      );
+  }
 }

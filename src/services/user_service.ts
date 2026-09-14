@@ -294,9 +294,15 @@ export class UserService {
     );
   }
 
+  /**
+   * 删除账户。
+   *
+   * 返回用户删除前拥有的衣物图片 R2 key，
+   * 由 Route 在数据库删除成功后继续清理 R2。
+   */
   async deleteUser(
     userId: string,
-  ): Promise<void> {
+  ): Promise<string[]> {
     if (
       !(await this.repository.existsById(
         userId,
@@ -308,9 +314,35 @@ export class UserService {
       );
     }
 
+    /**
+     * 必须先查询。
+     *
+     * users 删除后，
+     * clothing 会因为 ON DELETE CASCADE
+     * 自动消失。
+     */
+    const imageKeys =
+      await this.repository
+        .findOwnedClothingImageKeys(
+          userId,
+        );
+
+    /**
+     * 删除用户。
+     *
+     * 数据库会级联清理：
+     *
+     * clothing
+     * friend_requests
+     * friendships
+     * recommendations
+     * recommendation_items
+     */
     await this.repository.deleteById(
       userId,
     );
+
+    return imageKeys;
   }
 
   private async createInitialUsername(

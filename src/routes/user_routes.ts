@@ -90,8 +90,19 @@ userRoutes.patch(
   },
 );
 
+
 /**
  * DELETE /api/users/me
+ *
+ * 删除：
+ *
+ * 1. 用户
+ * 2. 用户衣物
+ * 3. 好友申请
+ * 4. 好友关系
+ * 5. 推荐记录
+ * 6. 推荐衣物关联
+ * 7. 用户衣物对应的 R2 图片
  */
 userRoutes.delete(
   '/me',
@@ -101,9 +112,64 @@ userRoutes.delete(
         c.env.DB,
       );
 
-    await service.deleteUser(
-      c.get('userId'),
-    );
+    const userId =
+      c.get('userId');
+
+    /**
+     * UserService 会：
+     *
+     * 1. 在删除数据库数据前取得 R2 keys
+     * 2. 删除 users row
+     * 3. 触发数据库 ON DELETE CASCADE
+     */
+    const imageKeys =
+      await service.deleteUser(
+        userId,
+      );
+
+    /**
+     * D1 已经成功删除账户。
+     *
+     * 之后尝试删除所有衣物图片。
+     *
+     * R2 删除失败不能再向客户端返回
+     * “注销失败”，否则会出现：
+     *
+     * 数据库账号已经不存在，
+     * 但 App 却认为注销失败。
+     *
+     * 因此这里只记录失败对象，
+     * 不回滚已经完成的账户删除。
+     */
+    if (imageKeys.length > 0) {
+      const results =
+        await Promise.allSettled(
+          imageKeys.map(
+            (key) =>
+              c.env.IMAGES.delete(
+                key,
+              ),
+          ),
+        );
+
+      results.forEach(
+        (
+          result,
+          index,
+        ) => {
+          if (
+            result.status ===
+            'rejected'
+          ) {
+            console.error(
+              'Failed to delete clothing image during account deletion:',
+              imageKeys[index],
+              result.reason,
+            );
+          }
+        },
+      );
+    }
 
     return successResponse({
       success: true,
