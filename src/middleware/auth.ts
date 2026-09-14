@@ -20,16 +20,20 @@ import {
 
 export const authMiddleware =
   createMiddleware<AppEnv>(
-    async (c, next) => {
+    async (
+      c,
+      next,
+    ) => {
       const authorization =
         c.req.header(
           'Authorization',
         );
 
       if (
-        !authorization?.startsWith(
-          'Bearer ',
-        )
+        !authorization
+          ?.startsWith(
+            'Bearer ',
+          )
       ) {
         return errorResponse(
           'Unauthorized',
@@ -49,13 +53,21 @@ export const authMiddleware =
         );
       }
 
-      const userId =
+      /**
+       * 验证 Token 本身：
+       *
+       * - 签名
+       * - 有效期
+       * - userId
+       * - tokenVersion
+       */
+      const verifiedToken =
         await verifyAccessToken(
           token,
           c.env.AUTH_SECRET,
         );
 
-      if (!userId) {
+      if (!verifiedToken) {
         return errorResponse(
           'Unauthorized',
           401,
@@ -67,10 +79,31 @@ export const authMiddleware =
           c.env.DB,
         );
 
+      /**
+       * 必须读取完整用户，
+       * 因为需要检查 token_version。
+       */
+      const user =
+        await repository.findById(
+          verifiedToken.userId,
+        );
+
+      if (!user) {
+        return errorResponse(
+          'Unauthorized',
+          401,
+        );
+      }
+
+      /**
+       * Token 版本不一致：
+       *
+       * 说明用户已经修改 / 重置密码，
+       * 当前 JWT 属于旧会话。
+       */
       if (
-        !(await repository.existsById(
-          userId,
-        ))
+        user.token_version !==
+        verifiedToken.tokenVersion
       ) {
         return errorResponse(
           'Unauthorized',
@@ -80,7 +113,7 @@ export const authMiddleware =
 
       c.set(
         'userId',
-        userId,
+        user.id,
       );
 
       await next();
