@@ -1,4 +1,6 @@
-import { Hono } from 'hono';
+import {
+  Hono,
+} from 'hono';
 
 import type {
   AppEnv,
@@ -14,6 +16,10 @@ import {
 } from '../services/user_service';
 
 import {
+  createAccessToken,
+} from '../utils/token';
+
+import {
   errorResponse,
   successResponse,
 } from '../utils/response';
@@ -21,6 +27,11 @@ import {
 const userRoutes =
   new Hono<AppEnv>();
 
+/**
+ * /api/users/*
+ *
+ * 全部要求登录。
+ */
 userRoutes.use(
   '*',
   authMiddleware,
@@ -29,8 +40,14 @@ userRoutes.use(
 function getUserService(
   db: D1Database,
 ): UserService {
-  return new UserService(db);
+  return new UserService(
+    db,
+  );
 }
+
+// ============================================================
+// Current user
+// ============================================================
 
 /**
  * GET /api/users/me
@@ -44,9 +61,12 @@ userRoutes.get(
       );
 
     const user =
-      await service.getUserById(
-        c.get('userId'),
-      );
+      await service
+        .getUserById(
+          c.get(
+            'userId',
+          ),
+        );
 
     if (!user) {
       return errorResponse(
@@ -63,6 +83,8 @@ userRoutes.get(
 
 /**
  * PATCH /api/users/me
+ *
+ * 修改用户名。
  */
 userRoutes.patch(
   '/me',
@@ -80,7 +102,9 @@ userRoutes.patch(
     const user =
       await service
         .updateUsername(
-          c.get('userId'),
+          c.get(
+            'userId',
+          ),
           body,
         );
 
@@ -90,6 +114,78 @@ userRoutes.patch(
   },
 );
 
+// ============================================================
+// Password
+// ============================================================
+
+/**
+ * PATCH /api/users/me/password
+ *
+ * 修改当前用户密码。
+ *
+ * Body:
+ *
+ * {
+ *   "currentPassword": "oldPassword",
+ *   "newPassword": "newPassword"
+ * }
+ *
+ * 修改成功：
+ *
+ * - 所有旧 JWT 失效
+ * - 当前设备得到一个新 JWT
+ */
+userRoutes.patch(
+  '/me/password',
+  async (c) => {
+    const body =
+      await readJsonBody(
+        c.req.raw,
+      );
+
+    const service =
+      getUserService(
+        c.env.DB,
+      );
+
+    const userId =
+      c.get(
+        'userId',
+      );
+
+    const tokenVersion =
+      await service
+        .changePassword(
+          userId,
+          body,
+        );
+
+    /**
+     * 数据库 token_version 已经 +1。
+     *
+     * 给当前设备签发新 Token，
+     * 保持当前设备登录状态。
+     *
+     * 其他设备持有的旧 Token
+     * 会因为 version 不一致失效。
+     */
+    const token =
+      await createAccessToken(
+        userId,
+        tokenVersion,
+        c.env.AUTH_SECRET,
+      );
+
+    return successResponse({
+      success: true,
+      token,
+    });
+  },
+);
+
+// ============================================================
+// Delete account
+// ============================================================
 
 /**
  * DELETE /api/users/me
@@ -113,7 +209,9 @@ userRoutes.delete(
       );
 
     const userId =
-      c.get('userId');
+      c.get(
+        'userId',
+      );
 
     /**
      * UserService 会：
@@ -123,9 +221,10 @@ userRoutes.delete(
      * 3. 触发数据库 ON DELETE CASCADE
      */
     const imageKeys =
-      await service.deleteUser(
-        userId,
-      );
+      await service
+        .deleteUser(
+          userId,
+        );
 
     /**
      * D1 已经成功删除账户。
@@ -137,20 +236,21 @@ userRoutes.delete(
      *
      * 数据库账号已经不存在，
      * 但 App 却认为注销失败。
-     *
-     * 因此这里只记录失败对象，
-     * 不回滚已经完成的账户删除。
      */
-    if (imageKeys.length > 0) {
+    if (
+      imageKeys.length > 0
+    ) {
       const results =
-        await Promise.allSettled(
-          imageKeys.map(
-            (key) =>
-              c.env.IMAGES.delete(
-                key,
-              ),
-          ),
-        );
+        await Promise
+          .allSettled(
+            imageKeys.map(
+              (key) =>
+                c.env.IMAGES
+                  .delete(
+                    key,
+                  ),
+            ),
+          );
 
       results.forEach(
         (
@@ -177,6 +277,10 @@ userRoutes.delete(
   },
 );
 
+// ============================================================
+// Search
+// ============================================================
+
 /**
  * GET /api/users/search?q=keyword
  */
@@ -189,16 +293,25 @@ userRoutes.get(
       );
 
     const users =
-      await service.searchUsers(
-        c.req.query('q') ?? '',
-        c.get('userId'),
-      );
+      await service
+        .searchUsers(
+          c.req.query(
+            'q',
+          ) ?? '',
+          c.get(
+            'userId',
+          ),
+        );
 
     return successResponse({
       users,
     });
   },
 );
+
+// ============================================================
+// User detail
+// ============================================================
 
 /**
  * GET /api/users/:id
@@ -212,9 +325,12 @@ userRoutes.get(
       );
 
     const user =
-      await service.getUserById(
-        c.req.param('id'),
-      );
+      await service
+        .getUserById(
+          c.req.param(
+            'id',
+          ),
+        );
 
     if (!user) {
       return errorResponse(
@@ -229,11 +345,16 @@ userRoutes.get(
   },
 );
 
+// ============================================================
+// JSON
+// ============================================================
+
 async function readJsonBody(
   request: Request,
 ): Promise<unknown> {
   try {
-    return await request.json();
+    return await request
+      .json();
   } catch {
     throw new UserServiceError(
       'Invalid JSON body',

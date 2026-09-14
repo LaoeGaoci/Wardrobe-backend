@@ -20,6 +20,7 @@ export class UserRepository {
           username,
           email,
           password_hash,
+          token_version,
           avatar_url,
           created_at,
           updated_at
@@ -67,6 +68,7 @@ export class UserRepository {
           username,
           email,
           password_hash,
+          token_version,
           avatar_url,
           created_at,
           updated_at
@@ -92,6 +94,7 @@ export class UserRepository {
           username,
           email,
           password_hash,
+          token_version,
           avatar_url,
           created_at,
           updated_at
@@ -119,7 +122,9 @@ export class UserRepository {
         `,
       )
       .bind(id)
-      .first<{ value: number }>();
+      .first<{
+        value: number;
+      }>();
 
     return row !== null;
   }
@@ -145,10 +150,18 @@ export class UserRepository {
         FROM users
         WHERE id != ?
           AND (
-            instr(lower(username), lower(?)) > 0
-            OR instr(lower(email), lower(?)) > 0
+            instr(
+              lower(username),
+              lower(?)
+            ) > 0
+            OR
+            instr(
+              lower(email),
+              lower(?)
+            ) > 0
           )
-        ORDER BY username COLLATE NOCASE ASC
+        ORDER BY
+          username COLLATE NOCASE ASC
         LIMIT ?
         `,
       )
@@ -187,6 +200,14 @@ export class UserRepository {
         user.avatarUrl,
       )
       .run();
+
+    /**
+     * token_version 不需要显式写入。
+     *
+     * 数据库默认：
+     *
+     * token_version = 0
+     */
   }
 
   async updateUsername(
@@ -203,10 +224,45 @@ export class UserRepository {
         WHERE id = ?
         `,
       )
-      .bind(username, id)
+      .bind(
+        username,
+        id,
+      )
       .run();
 
     return this.findPublicById(id);
+  }
+
+  /**
+   * 修改密码，同时废弃所有旧 JWT。
+   *
+   * token_version + 1
+   *
+   * 修改后返回最新 UserRow，
+   * 让当前设备可以生成新的 JWT。
+   */
+  async updatePasswordAndRotateToken(
+    id: string,
+    passwordHash: string,
+  ): Promise<UserRow | null> {
+    await this.db
+      .prepare(
+        `
+        UPDATE users
+        SET
+          password_hash = ?,
+          token_version = token_version + 1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+      )
+      .bind(
+        passwordHash,
+        id,
+      )
+      .run();
+
+    return this.findById(id);
   }
 
   async deleteById(
@@ -222,7 +278,8 @@ export class UserRepository {
       .bind(id)
       .run();
   }
-    /**
+
+  /**
    * 查询当前用户所有衣物对应的 R2 object key。
    *
    * 注销账户时必须在删除 users row 之前调用，
