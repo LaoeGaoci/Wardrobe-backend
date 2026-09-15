@@ -19,6 +19,9 @@ import {
 	ClothingImageService,
 } from '../services/clothing_image_service';
 
+const IMAGE_CACHE_CONTROL =
+	'private, max-age=31536000, immutable';
+
 export const clothingRoutes =
 	new Hono<AppEnv>();
 
@@ -39,7 +42,6 @@ clothingRoutes.use(
  * GET /api/clothing
  *
  * Optional:
- *
  * ?category=上衣
  * ?q=Uniqlo
  * ?visibility=private
@@ -58,19 +60,11 @@ clothingRoutes.get(
 					c.get('userId'),
 					{
 						category:
-							c.req.query(
-								'category',
-							),
-
+							c.req.query('category'),
 						query:
-							c.req.query(
-								'q',
-							),
-
+							c.req.query('q'),
 						visibility:
-							c.req.query(
-								'visibility',
-							),
+							c.req.query('visibility'),
 					},
 				);
 
@@ -96,9 +90,7 @@ clothingRoutes.post(
 			);
 
 		const body =
-			await readJsonBody(
-				c,
-			);
+			await readJsonBody(c);
 
 		const clothing =
 			await service
@@ -122,6 +114,9 @@ clothingRoutes.post(
 
 /**
  * GET /api/clothing/:id/image
+ *
+ * Flutter 使用 ?v=<updatedAt> 进行版本化，
+ * 因此这里可以返回一年 immutable 缓存。
  */
 clothingRoutes.get(
 	'/:id/image',
@@ -148,11 +143,11 @@ clothingRoutes.get(
 				'application/octet-stream',
 		);
 
+		// 不读取旧 R2 object 中的 1h cacheControl。
+		// 这样历史图片无需重新上传，也能立即使用新的长缓存策略。
 		headers.set(
 			'Cache-Control',
-			object.httpMetadata
-				?.cacheControl ??
-				'private, max-age=3600',
+			IMAGE_CACHE_CONTROL,
 		);
 
 		if (object.httpEtag) {
@@ -164,9 +159,7 @@ clothingRoutes.get(
 
 		headers.set(
 			'Content-Length',
-			String(
-				object.size,
-			),
+			String(object.size),
 		);
 
 		return new Response(
@@ -181,12 +174,8 @@ clothingRoutes.get(
 
 /**
  * PUT /api/clothing/:id/image
- *
  * multipart/form-data
- *
- * field:
- *
- * image
+ * field: image
  */
 clothingRoutes.put(
 	'/:id/image',
@@ -197,14 +186,11 @@ clothingRoutes.put(
 				c.env.IMAGES,
 			);
 
-		let formData:
-			FormData;
+		let formData: FormData;
 
 		try {
 			formData =
-				await c.req
-					.raw
-					.formData();
+				await c.req.raw.formData();
 		} catch {
 			throw new ClothingServiceError(
 				'Invalid multipart form data',
@@ -213,17 +199,14 @@ clothingRoutes.put(
 		}
 
 		const image =
-			formData.get(
-				'image',
-			);
+			formData.get('image');
 
 		const clothing =
-			await service
-				.uploadImage(
-					c.get('userId'),
-					c.req.param('id'),
-					image,
-				);
+			await service.uploadImage(
+				c.get('userId'),
+				c.req.param('id'),
+				image,
+			);
 
 		return c.json({
 			clothing,
@@ -244,11 +227,10 @@ clothingRoutes.delete(
 			);
 
 		const clothing =
-			await service
-				.deleteImage(
-					c.get('userId'),
-					c.req.param('id'),
-				);
+			await service.deleteImage(
+				c.get('userId'),
+				c.req.param('id'),
+			);
 
 		return c.json({
 			clothing,
@@ -272,11 +254,10 @@ clothingRoutes.get(
 			);
 
 		const clothing =
-			await service
-				.getOwnedClothing(
-					c.get('userId'),
-					c.req.param('id'),
-				);
+			await service.getOwnedClothing(
+				c.get('userId'),
+				c.req.param('id'),
+			);
 
 		return c.json({
 			clothing,
@@ -292,7 +273,6 @@ clothingRoutes.get(
  * PATCH /api/clothing/:id
  *
  * 可部分修改：
- *
  * name
  * brand
  * category
@@ -310,17 +290,14 @@ clothingRoutes.patch(
 			);
 
 		const body =
-			await readJsonBody(
-				c,
-			);
+			await readJsonBody(c);
 
 		const clothing =
-			await service
-				.updateClothing(
-					c.get('userId'),
-					c.req.param('id'),
-					body,
-				);
+			await service.updateClothing(
+				c.get('userId'),
+				c.req.param('id'),
+				body,
+			);
 
 		return c.json({
 			clothing,
@@ -350,26 +327,21 @@ clothingRoutes.delete(
 			);
 
 		/**
-		 * 先取得删除前的 image key，
-		 * 再删除 D1 row。
+		 * 先取得删除前的 image key，再删除 D1 row。
 		 */
 		const deleted =
-			await clothingService
-				.deleteClothing(
-					c.get('userId'),
-					c.req.param('id'),
-				);
+			await clothingService.deleteClothing(
+				c.get('userId'),
+				c.req.param('id'),
+			);
 
 		/**
 		 * 数据库成功删除后再清理 R2。
-		 *
-		 * R2 清理失败不会让已经完成的
-		 * D1 删除回滚。
+		 * R2 清理失败不会让已经完成的 D1 删除回滚。
 		 */
-		await imageService
-			.deleteImageByKey(
-				deleted.image_url,
-			);
+		await imageService.deleteImageByKey(
+			deleted.image_url,
+		);
 
 		return c.json({
 			success: true,
@@ -389,8 +361,7 @@ async function readJsonBody(
 	},
 ): Promise<unknown> {
 	try {
-		return await c.req
-			.json<unknown>();
+		return await c.req.json<unknown>();
 	} catch {
 		throw new ClothingServiceError(
 			'Invalid JSON body',

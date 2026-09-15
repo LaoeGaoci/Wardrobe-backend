@@ -14,12 +14,21 @@ import {
 const MAX_IMAGE_SIZE =
 	10 * 1024 * 1024;
 
+/**
+ * 图片 URL 在 Flutter 端会携带：
+ *
+ * ?v=<clothing.updatedAt>
+ *
+ * 图片更新后 updatedAt 改变，因此 URL 也会改变。
+ * 这使图片可以安全地使用长时间 immutable 缓存。
+ */
+const IMAGE_CACHE_CONTROL =
+	'private, max-age=31536000, immutable';
+
 const IMAGE_EXTENSIONS:
 	Record<string, string> = {
 		'image/jpeg': 'jpg',
-
 		'image/png': 'png',
-
 		'image/webp': 'webp',
 	};
 
@@ -29,7 +38,6 @@ export class ClothingImageService {
 
 	constructor(
 		db: D1Database,
-
 		private readonly bucket:
 			R2Bucket,
 	) {
@@ -62,9 +70,7 @@ export class ClothingImageService {
 			);
 		}
 
-		if (
-			!(value instanceof File)
-		) {
+		if (!(value instanceof File)) {
 			throw new ClothingServiceError(
 				'Image file is required',
 				400,
@@ -73,19 +79,14 @@ export class ClothingImageService {
 
 		const file = value;
 
-		if (
-			file.size <= 0
-		) {
+		if (file.size <= 0) {
 			throw new ClothingServiceError(
 				'Image file is empty',
 				400,
 			);
 		}
 
-		if (
-			file.size >
-			MAX_IMAGE_SIZE
-		) {
+		if (file.size > MAX_IMAGE_SIZE) {
 			throw new ClothingServiceError(
 				'Image file is too large',
 				413,
@@ -93,9 +94,7 @@ export class ClothingImageService {
 		}
 
 		const extension =
-			IMAGE_EXTENSIONS[
-				file.type
-			];
+			IMAGE_EXTENSIONS[file.type];
 
 		if (!extension) {
 			throw new ClothingServiceError(
@@ -107,13 +106,12 @@ export class ClothingImageService {
 		const oldImageKey =
 			clothing.image_url;
 
-		const newImageKey =
-			[
-				'clothing',
-				userId,
-				clothingId,
-				`${crypto.randomUUID()}.${extension}`,
-			].join('/');
+		const newImageKey = [
+			'clothing',
+			userId,
+			clothingId,
+			`${crypto.randomUUID()}.${extension}`,
+		].join('/');
 
 		// 1. 先写入新的 R2 object。
 		await this.bucket.put(
@@ -121,16 +119,12 @@ export class ClothingImageService {
 			file.stream(),
 			{
 				httpMetadata: {
-					contentType:
-						file.type,
-
+					contentType: file.type,
 					cacheControl:
-						'private, max-age=3600',
+						IMAGE_CACHE_CONTROL,
 				},
-
 				customMetadata: {
 					userId,
-
 					clothingId,
 				},
 			},
@@ -165,12 +159,10 @@ export class ClothingImageService {
 			throw error;
 		}
 
-		// 3. 新图已经成功关联数据库后，
-		//    再尝试删除旧图。
+		// 3. 新图已经成功关联数据库后，再尝试删除旧图。
 		if (
 			oldImageKey &&
-			oldImageKey !==
-				newImageKey
+			oldImageKey !== newImageKey
 		) {
 			try {
 				await this.bucket.delete(
@@ -320,9 +312,7 @@ export class ClothingImageService {
 			);
 		}
 
-		return mapClothing(
-			result,
-		);
+		return mapClothing(result);
 	}
 
 	// ============================================================
