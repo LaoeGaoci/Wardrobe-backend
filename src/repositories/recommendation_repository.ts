@@ -225,18 +225,6 @@ export class RecommendationRepository {
 
 	/**
 	 * 查询当前用户的所有未读推荐。
-	 *
-	 * 这个接口专门用于主页：
-	 *
-	 * 最新信封
-	 * ↓
-	 * 第二封
-	 * ↓
-	 * 第三封
-	 *
-	 * 因此必须：
-	 *
-	 * ORDER BY created_at DESC
 	 */
 	async findUnread(
 		receiverId: string,
@@ -328,19 +316,6 @@ export class RecommendationRepository {
 	// Detail
 	// ============================================================
 
-	/**
-	 * 查询单条推荐。
-	 *
-	 * 只有：
-	 *
-	 * sender
-	 * 或
-	 * receiver
-	 *
-	 * 才能查询。
-	 *
-	 * 其他人查询不到。
-	 */
 	async findAccessibleById(
 		recommendationId: string,
 		userId: string,
@@ -405,13 +380,6 @@ export class RecommendationRepository {
 		return row ?? null;
 	}
 
-	/**
-	 * 查询“当前用户收到的推荐”。
-	 *
-	 * 标记已读时使用。
-	 *
-	 * sender 不能调用 mark read。
-	 */
 	async findReceivedById(
 		recommendationId: string,
 		receiverId: string,
@@ -475,15 +443,6 @@ export class RecommendationRepository {
 	// Read
 	// ============================================================
 
-	/**
-	 * 标记推荐已读。
-	 *
-	 * 如果已经读过：
-	 *
-	 * read_at 不会被重新覆盖。
-	 *
-	 * 这样可以保留第一次打开推荐的时间。
-	 */
 	async markRead(
 		recommendationId: string,
 		receiverId: string,
@@ -507,22 +466,6 @@ export class RecommendationRepository {
 	// Recommendation clothing
 	// ============================================================
 
-	/**
-	 * 一次查询多个 recommendation
-	 * 对应的全部衣物。
-	 *
-	 * 这样：
-	 *
-	 * GET /received
-	 *
-	 * 不需要：
-	 *
-	 * recommendation 1 -> SQL
-	 * recommendation 2 -> SQL
-	 * recommendation 3 -> SQL
-	 *
-	 * 避免 N+1。
-	 */
 	async findItemsByRecommendationIds(
 		recommendationIds: string[],
 	): Promise<
@@ -549,7 +492,7 @@ export class RecommendationRepository {
 
 						c.id,
 						c.owner_id,
-						c.name,
+						c.location,
 						c.brand,
 						c.category,
 						c.color,
@@ -587,15 +530,6 @@ export class RecommendationRepository {
 	// Validate clothing before sending
 	// ============================================================
 
-	/**
-	 * 发送推荐以前检查：
-	 *
-	 * 1. 衣物属于 receiver
-	 * 2. 衣物当前为 public
-	 *
-	 * 只有满足这两个条件的衣物
-	 * 才允许被好友推荐。
-	 */
 	async findPublicOwnedClothingByIds(
 		ownerId: string,
 		clothingIds: string[],
@@ -619,7 +553,7 @@ export class RecommendationRepository {
 					SELECT
 						id,
 						owner_id,
-						name,
+						location,
 						brand,
 						category,
 						color,
@@ -647,27 +581,6 @@ export class RecommendationRepository {
 	// Recommendation image authorization
 	// ============================================================
 
-	/**
-	 * 查询推荐中的某件衣物。
-	 *
-	 * 这里非常重要：
-	 *
-	 * 不再检查双方“现在还是不是好友”，
-	 * 也不再检查衣物“现在还是不是 public”。
-	 *
-	 * 原因：
-	 *
-	 * recommendation_items 已经证明这件衣物
-	 * 在推荐发送时合法地属于这个历史推荐。
-	 *
-	 * 只要当前用户是：
-	 *
-	 * sender
-	 * 或
-	 * receiver
-	 *
-	 * 就允许查看历史推荐中的图片。
-	 */
 	async findAccessibleItemClothing(
 		recommendationId: string,
 		clothingId: string,
@@ -679,7 +592,7 @@ export class RecommendationRepository {
 					SELECT
 						c.id,
 						c.owner_id,
-						c.name,
+						c.location,
 						c.brand,
 						c.category,
 						c.color,

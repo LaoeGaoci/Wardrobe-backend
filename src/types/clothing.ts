@@ -10,7 +10,7 @@ export interface ClothingRow {
 
 	owner_id: string;
 
-	name: string;
+	location: string;
 
 	brand: string | null;
 
@@ -47,7 +47,7 @@ export interface Clothing {
 
 	ownerId: string;
 
-	name: string;
+	location: string;
 
 	brand: string | null;
 
@@ -81,7 +81,7 @@ export interface CreateClothingRecord {
 
 	ownerId: string;
 
-	name: string;
+	location: string;
 
 	brand: string | null;
 
@@ -105,7 +105,7 @@ export interface CreateClothingRecord {
  * 所以传进 Repository 时已经是完整数据。
  */
 export interface UpdateClothingRecord {
-	name: string;
+	location: string;
 
 	brand: string | null;
 

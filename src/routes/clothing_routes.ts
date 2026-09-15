@@ -143,8 +143,6 @@ clothingRoutes.get(
 				'application/octet-stream',
 		);
 
-		// 不读取旧 R2 object 中的 1h cacheControl。
-		// 这样历史图片无需重新上传，也能立即使用新的长缓存策略。
 		headers.set(
 			'Cache-Control',
 			IMAGE_CACHE_CONTROL,
@@ -273,7 +271,7 @@ clothingRoutes.get(
  * PATCH /api/clothing/:id
  *
  * 可部分修改：
- * name
+ * location
  * brand
  * category
  * color
@@ -326,19 +324,12 @@ clothingRoutes.delete(
 				c.env.IMAGES,
 			);
 
-		/**
-		 * 先取得删除前的 image key，再删除 D1 row。
-		 */
 		const deleted =
 			await clothingService.deleteClothing(
 				c.get('userId'),
 				c.req.param('id'),
 			);
 
-		/**
-		 * 数据库成功删除后再清理 R2。
-		 * R2 清理失败不会让已经完成的 D1 删除回滚。
-		 */
 		await imageService.deleteImageByKey(
 			deleted.image_url,
 		);

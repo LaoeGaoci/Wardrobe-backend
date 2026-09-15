@@ -33,18 +33,9 @@ import type {
 // Validation limits
 // ============================================================
 
-/**
- * 与 Flutter 推荐留言输入框保持一致。
- */
 const MESSAGE_MAX_LENGTH =
 	200;
 
-/**
- * 防止一次请求塞入过多 clothing id。
- *
- * 当前 UI 实际一般只有几件，
- * 20 已经足够。
- */
 const MAX_CLOTHING_ITEMS =
 	20;
 
@@ -85,22 +76,6 @@ export class RecommendationService {
 	// Send
 	// ============================================================
 
-	/**
-	 * 发送推荐。
-	 *
-	 * POST /api/recommendations
-	 *
-	 * Body:
-	 *
-	 * {
-	 *   "toUserId": "...",
-	 *   "clothingIds": [
-	 *     "...",
-	 *     "..."
-	 *   ],
-	 *   "message": "..."
-	 * }
-	 */
 	async sendRecommendation(
 		currentUserId: string,
 		input: unknown,
@@ -127,10 +102,6 @@ export class RecommendationService {
 				body.clothingIds,
 			);
 
-		// --------------------------------------------------------
-		// Message length
-		// --------------------------------------------------------
-
 		if (
 			message.length >
 			MESSAGE_MAX_LENGTH
@@ -141,10 +112,6 @@ export class RecommendationService {
 			);
 		}
 
-		// --------------------------------------------------------
-		// Cannot recommend to self
-		// --------------------------------------------------------
-
 		if (
 			currentUserId ===
 			toUserId
@@ -154,10 +121,6 @@ export class RecommendationService {
 				400,
 			);
 		}
-
-		// --------------------------------------------------------
-		// Receiver must exist
-		// --------------------------------------------------------
 
 		const receiverExists =
 			await this.userRepository
@@ -171,10 +134,6 @@ export class RecommendationService {
 				404,
 			);
 		}
-
-		// --------------------------------------------------------
-		// Must be friends
-		// --------------------------------------------------------
 
 		const isFriend =
 			await this.friendRepository
@@ -190,16 +149,6 @@ export class RecommendationService {
 			);
 		}
 
-		// --------------------------------------------------------
-		// Validate clothing
-		// --------------------------------------------------------
-
-		/**
-		 * 所有衣物必须：
-		 *
-		 * owner_id = receiver
-		 * visibility = public
-		 */
 		const availableClothes =
 			await this.repository
 				.findPublicOwnedClothingByIds(
@@ -207,14 +156,6 @@ export class RecommendationService {
 					clothingIds,
 				);
 
-		/**
-		 * 因为 clothingIds 已经去重，
-		 * 数量不一致意味着：
-		 *
-		 * - 某件不存在
-		 * - 某件不是好友的
-		 * - 某件现在是 private
-		 */
 		if (
 			availableClothes.length !==
 			clothingIds.length
@@ -224,10 +165,6 @@ export class RecommendationService {
 				400,
 			);
 		}
-
-		// --------------------------------------------------------
-		// Create
-		// --------------------------------------------------------
 
 		const recommendationId =
 			generateId();
@@ -248,10 +185,6 @@ export class RecommendationService {
 				clothingIds,
 			});
 
-		/**
-		 * 创建成功后重新查询，
-		 * 返回完整 Recommendation DTO。
-		 */
 		return this.getRecommendation(
 			currentUserId,
 			recommendationId,
@@ -262,23 +195,6 @@ export class RecommendationService {
 	// Home unread stack
 	// ============================================================
 
-	/**
-	 * 获取主页所有未读推荐。
-	 *
-	 * GET /api/recommendations/unread
-	 *
-	 * 返回顺序：
-	 *
-	 * recommendations[0]
-	 * =
-	 * 最新推荐信。
-	 *
-	 * Flutter 可以直接：
-	 *
-	 * unreadRecommendations.first
-	 *
-	 * 作为最上层信封。
-	 */
 	async listUnread(
 		currentUserId: string,
 	): Promise<Recommendation[]> {
@@ -293,10 +209,6 @@ export class RecommendationService {
 		);
 	}
 
-	/**
-	 * GET
-	 * /api/recommendations/unread-count
-	 */
 	async getUnreadCount(
 		currentUserId: string,
 	): Promise<number> {
@@ -310,14 +222,6 @@ export class RecommendationService {
 	// History
 	// ============================================================
 
-	/**
-	 * 收到的推荐历史。
-	 *
-	 * 包括：
-	 *
-	 * unread
-	 * read
-	 */
 	async listReceived(
 		currentUserId: string,
 	): Promise<Recommendation[]> {
@@ -332,9 +236,6 @@ export class RecommendationService {
 		);
 	}
 
-	/**
-	 * 我发出的推荐历史。
-	 */
 	async listSent(
 		currentUserId: string,
 	): Promise<Recommendation[]> {
@@ -353,11 +254,6 @@ export class RecommendationService {
 	// Detail
 	// ============================================================
 
-	/**
-	 * 查询一条推荐。
-	 *
-	 * sender 或 receiver 都可以查看。
-	 */
 	async getRecommendation(
 		currentUserId: string,
 		recommendationId: string,
@@ -369,10 +265,6 @@ export class RecommendationService {
 					currentUserId,
 				);
 
-		/**
-		 * 对无权限用户也返回 404，
-		 * 不暴露 recommendation 是否存在。
-		 */
 		if (!header) {
 			throw new RecommendationServiceError(
 				'Recommendation not found',
@@ -403,17 +295,6 @@ export class RecommendationService {
 	// Read
 	// ============================================================
 
-	/**
-	 * 标记推荐已读。
-	 *
-	 * PATCH
-	 * /api/recommendations/:id/read
-	 *
-	 * 只有 receiver 可以执行。
-	 *
-	 * 已经读过再次调用也是安全的，
-	 * 不会重置 read_at。
-	 */
 	async markAsRead(
 		currentUserId: string,
 		recommendationId: string,
@@ -438,10 +319,6 @@ export class RecommendationService {
 				currentUserId,
 			);
 
-		/**
-		 * 重新查询，
-		 * 返回带最新 readAt 的对象。
-		 */
 		return this.getRecommendation(
 			currentUserId,
 			recommendationId,
@@ -452,20 +329,6 @@ export class RecommendationService {
 	// Recommendation image
 	// ============================================================
 
-	/**
-	 * 推荐历史里的图片权限验证。
-	 *
-	 * 与 friend wardrobe 不同：
-	 *
-	 * 历史推荐不要求双方现在仍然是好友。
-	 *
-	 * 也不要求衣物现在仍是 public。
-	 *
-	 * 只要求：
-	 *
-	 * 1. recommendation_items 中有这件衣物
-	 * 2. 当前用户是 sender 或 receiver
-	 */
 	async getRecommendationClothingForImage(
 		currentUserId: string,
 		recommendationId: string,
@@ -493,21 +356,6 @@ export class RecommendationService {
 	// Build DTO
 	// ============================================================
 
-	/**
-	 * 把：
-	 *
-	 * recommendation header
-	 *
-	 * +
-	 *
-	 * recommendation_items
-	 *
-	 * +
-	 *
-	 * clothing
-	 *
-	 * 合并成最终 Flutter DTO。
-	 */
 	private async buildRecommendations(
 		headers:
 			RecommendationWithUsersRow[],
@@ -517,10 +365,6 @@ export class RecommendationService {
 		) {
 			return [];
 		}
-
-		// --------------------------------------------------------
-		// 一次查询所有衣物
-		// --------------------------------------------------------
 
 		const recommendationIds =
 			headers.map(
@@ -533,10 +377,6 @@ export class RecommendationService {
 				.findItemsByRecommendationIds(
 					recommendationIds,
 				);
-
-		// --------------------------------------------------------
-		// recommendationId -> clothing rows
-		// --------------------------------------------------------
 
 		const clothingMap =
 			new Map<
@@ -567,10 +407,6 @@ export class RecommendationService {
 			}
 		}
 
-		// --------------------------------------------------------
-		// Map recommendation
-		// --------------------------------------------------------
-
 		return headers.map(
 			(header) => {
 				const clothes =
@@ -593,10 +429,6 @@ export class RecommendationService {
 			},
 		);
 	}
-
-	// ============================================================
-	// Map Recommendation
-	// ============================================================
 
 	private mapRecommendation(
 		row:
@@ -663,12 +495,6 @@ export class RecommendationService {
 	// Map Clothing
 	// ============================================================
 
-	/**
-	 * 注意 imageUrl：
-	 *
-	 * 推荐历史中的图片必须使用
-	 * recommendation 专用 endpoint。
-	 */
 	private mapClothing(
 		row:
 			RecommendationItemClothingRow,
@@ -681,8 +507,8 @@ export class RecommendationService {
 			ownerId:
 				row.owner_id,
 
-			name:
-				row.name,
+			location:
+				row.location,
 
 			brand:
 				row.brand,
@@ -767,11 +593,6 @@ function requireText(
 	return normalized;
 }
 
-/**
- * 校验衣物 ID 数组。
- *
- * 同时去除重复 ID。
- */
 function parseClothingIds(
 	value: unknown,
 ): string[] {
@@ -833,11 +654,6 @@ function parseClothingIds(
 			);
 		}
 
-		/**
-		 * 自动去掉重复 ID，
-		 * 避免 recommendation_items
-		 * PRIMARY KEY 冲突。
-		 */
 		if (
 			!seen.has(
 				id,
