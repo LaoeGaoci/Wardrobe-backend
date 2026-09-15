@@ -19,6 +19,9 @@ import {
 	successResponse,
 } from '../utils/response';
 
+const IMAGE_CACHE_CONTROL =
+	'private, max-age=31536000, immutable';
+
 /**
  * 推荐系统 Router。
  */
@@ -30,14 +33,8 @@ const recommendationRoutes =
 // ============================================================
 
 /**
- * 所有：
- *
- * /api/recommendations/*
- *
- * 都要求：
- *
- * Authorization:
- * Bearer <token>
+ * 所有 /api/recommendations/* 都要求：
+ * Authorization: Bearer <token>
  */
 recommendationRoutes.use(
 	'*',
@@ -46,7 +43,6 @@ recommendationRoutes.use(
 
 // ============================================================
 // POST /api/recommendations
-//
 // 发送推荐
 // ============================================================
 
@@ -59,19 +55,13 @@ recommendationRoutes.post(
 			);
 
 		const body =
-			await readJsonBody(
-				c.req.raw,
-			);
+			await readJsonBody(c.req.raw);
 
 		const recommendation =
-			await service
-				.sendRecommendation(
-					c.get(
-						'userId',
-					),
-
-					body,
-				);
+			await service.sendRecommendation(
+				c.get('userId'),
+				body,
+			);
 
 		return successResponse(
 			{
@@ -84,7 +74,6 @@ recommendationRoutes.post(
 
 // ============================================================
 // GET /api/recommendations/unread
-//
 // 首页堆叠未读推荐信
 // ============================================================
 
@@ -97,12 +86,9 @@ recommendationRoutes.get(
 			);
 
 		const recommendations =
-			await service
-				.listUnread(
-					c.get(
-						'userId',
-					),
-				);
+			await service.listUnread(
+				c.get('userId'),
+			);
 
 		return successResponse({
 			recommendations,
@@ -112,7 +98,6 @@ recommendationRoutes.get(
 
 // ============================================================
 // GET /api/recommendations/unread-count
-//
 // 未读数量
 // ============================================================
 
@@ -125,12 +110,9 @@ recommendationRoutes.get(
 			);
 
 		const count =
-			await service
-				.getUnreadCount(
-					c.get(
-						'userId',
-					),
-				);
+			await service.getUnreadCount(
+				c.get('userId'),
+			);
 
 		return successResponse({
 			count,
@@ -140,7 +122,6 @@ recommendationRoutes.get(
 
 // ============================================================
 // GET /api/recommendations/received
-//
 // 收到的推荐历史
 // ============================================================
 
@@ -153,12 +134,9 @@ recommendationRoutes.get(
 			);
 
 		const recommendations =
-			await service
-				.listReceived(
-					c.get(
-						'userId',
-					),
-				);
+			await service.listReceived(
+				c.get('userId'),
+			);
 
 		return successResponse({
 			recommendations,
@@ -168,7 +146,6 @@ recommendationRoutes.get(
 
 // ============================================================
 // GET /api/recommendations/sent
-//
 // 发出的推荐历史
 // ============================================================
 
@@ -181,12 +158,9 @@ recommendationRoutes.get(
 			);
 
 		const recommendations =
-			await service
-				.listSent(
-					c.get(
-						'userId',
-					),
-				);
+			await service.listSent(
+				c.get('userId'),
+			);
 
 		return successResponse({
 			recommendations,
@@ -195,9 +169,7 @@ recommendationRoutes.get(
 );
 
 // ============================================================
-// GET
-// /api/recommendations/:recommendationId/clothing/:clothingId/image
-//
+// GET /api/recommendations/:recommendationId/clothing/:clothingId/image
 // 查看推荐历史中的衣物图片。
 // ============================================================
 
@@ -211,34 +183,19 @@ recommendationRoutes.get(
 
 		/**
 		 * Service 会检查：
-		 *
 		 * 1. recommendation 存在
-		 *
-		 * 2. recommendation_items
-		 *    确实包含 clothingId
-		 *
-		 * 3. 当前用户是 sender
-		 *    或 receiver
+		 * 2. recommendation_items 确实包含 clothingId
+		 * 3. 当前用户是 sender 或 receiver
 		 */
 		const clothing =
 			await service
 				.getRecommendationClothingForImage(
-					c.get(
-						'userId',
-					),
-
-					c.req.param(
-						'recommendationId',
-					),
-
-					c.req.param(
-						'clothingId',
-					),
+					c.get('userId'),
+					c.req.param('recommendationId'),
+					c.req.param('clothingId'),
 				);
 
-		if (
-			!clothing.image_url
-		) {
+		if (!clothing.image_url) {
 			throw new RecommendationServiceError(
 				'Recommendation clothing image not found',
 				404,
@@ -246,8 +203,7 @@ recommendationRoutes.get(
 		}
 
 		/**
-		 * clothing.image_url
-		 * 实际保存 R2 object key。
+		 * clothing.image_url 实际保存 R2 object key。
 		 */
 		const object =
 			await c.env.IMAGES.get(
@@ -266,23 +222,19 @@ recommendationRoutes.get(
 
 		headers.set(
 			'Content-Type',
-
 			object.httpMetadata
 				?.contentType ??
 				'application/octet-stream',
 		);
 
+		// recommendation clothing 同样带 updatedAt 版本参数，
+		// 可以安全使用长时间 immutable 缓存。
 		headers.set(
 			'Cache-Control',
-
-			object.httpMetadata
-				?.cacheControl ??
-				'private, max-age=3600',
+			IMAGE_CACHE_CONTROL,
 		);
 
-		if (
-			object.httpEtag
-		) {
+		if (object.httpEtag) {
 			headers.set(
 				'ETag',
 				object.httpEtag,
@@ -291,17 +243,13 @@ recommendationRoutes.get(
 
 		headers.set(
 			'Content-Length',
-			String(
-				object.size,
-			),
+			String(object.size),
 		);
 
 		return new Response(
 			object.body,
 			{
-				status:
-					200,
-
+				status: 200,
 				headers,
 			},
 		);
@@ -310,7 +258,6 @@ recommendationRoutes.get(
 
 // ============================================================
 // PATCH /api/recommendations/:id/read
-//
 // 标记已读。
 // ============================================================
 
@@ -323,16 +270,10 @@ recommendationRoutes.patch(
 			);
 
 		const recommendation =
-			await service
-				.markAsRead(
-					c.get(
-						'userId',
-					),
-
-					c.req.param(
-						'id',
-					),
-				);
+			await service.markAsRead(
+				c.get('userId'),
+				c.req.param('id'),
+			);
 
 		return successResponse({
 			recommendation,
@@ -342,20 +283,16 @@ recommendationRoutes.patch(
 
 // ============================================================
 // GET /api/recommendations/:id
-//
 // 推荐详情。
 // ============================================================
 
 /**
  * 这条动态路由放在：
- *
  * /unread
  * /received
  * /sent
  * /unread-count
- *
- * 之后，
- * 避免结构上产生歧义。
+ * 之后，避免结构上产生歧义。
  */
 recommendationRoutes.get(
 	'/:id',
@@ -366,16 +303,10 @@ recommendationRoutes.get(
 			);
 
 		const recommendation =
-			await service
-				.getRecommendation(
-					c.get(
-						'userId',
-					),
-
-					c.req.param(
-						'id',
-					),
-				);
+			await service.getRecommendation(
+				c.get('userId'),
+				c.req.param('id'),
+			);
 
 		return successResponse({
 			recommendation,
