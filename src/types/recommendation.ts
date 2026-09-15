@@ -105,7 +105,7 @@ export interface RecommendationItemClothingRow {
 
 	owner_id: string;
 
-	name: string;
+	location: string;
 
 	brand: string | null;
 

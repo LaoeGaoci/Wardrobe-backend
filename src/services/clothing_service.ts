@@ -15,7 +15,7 @@ import {
 	generateId,
 } from '../utils/id';
 
-const NAME_MAX_LENGTH = 100;
+const LOCATION_MAX_LENGTH = 100;
 
 const BRAND_MAX_LENGTH = 100;
 
@@ -143,11 +143,11 @@ export class ClothingService {
 				input,
 			);
 
-		const name =
+		const location =
 			parseRequiredText(
-				body.name,
-				'name',
-				NAME_MAX_LENGTH,
+				body.location,
+				'location',
+				LOCATION_MAX_LENGTH,
 			);
 
 		const brand =
@@ -198,7 +198,7 @@ export class ClothingService {
 
 			ownerId: userId,
 
-			name,
+			location,
 
 			brand,
 
@@ -248,7 +248,7 @@ export class ClothingService {
 	 * 支持部分更新。
 	 *
 	 * 可以修改：
-	 * - name
+	 * - location
 	 * - brand
 	 * - category
 	 * - color
@@ -297,7 +297,7 @@ export class ClothingService {
 				);
 
 		const editableFields = [
-			'name',
+			'location',
 			'brand',
 			'category',
 			'color',
@@ -321,13 +321,13 @@ export class ClothingService {
 
 		const update:
 			UpdateClothingRecord = {
-			name: has('name')
+			location: has('location')
 				? parseRequiredText(
-						body.name,
-						'name',
-						NAME_MAX_LENGTH,
+						body.location,
+						'location',
+						LOCATION_MAX_LENGTH,
 					)
-				: current.name,
+				: current.location,
 
 			brand: has('brand')
 				? parseOptionalText(
@@ -467,8 +467,8 @@ export function mapClothing(
 		ownerId:
 			row.owner_id,
 
-		name:
-			row.name,
+		location:
+			row.location,
 
 		brand:
 			row.brand,

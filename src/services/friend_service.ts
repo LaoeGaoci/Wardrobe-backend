@@ -36,27 +36,15 @@ import type {
 // Limits
 // ============================================================
 
-/**
- * 好友申请文字最大长度。
- */
 const REQUEST_MESSAGE_MAX_LENGTH =
 	200;
 
-/**
- * 好友备注最大长度。
- */
 const REMARK_MAX_LENGTH =
 	50;
 
-/**
- * 好友衣柜搜索关键词最大长度。
- */
 const SEARCH_MAX_LENGTH =
 	100;
 
-/**
- * 分类字段最大长度。
- */
 const CATEGORY_MAX_LENGTH =
 	50;
 
@@ -97,11 +85,6 @@ export class FriendService {
 	// Friend list
 	// ============================================================
 
-	/**
-	 * 获取当前用户的好友列表。
-	 *
-	 * GET /api/friends
-	 */
 	async listFriends(
 		currentUserId: string,
 	): Promise<FriendRelation[]> {
@@ -123,23 +106,10 @@ export class FriendService {
 	// Friend status
 	// ============================================================
 
-	/**
-	 * 获取当前用户和指定用户之间的状态。
-	 *
-	 * 优先级：
-	 *
-	 * 1. friends
-	 * 2. requestSent
-	 * 3. requestReceived
-	 * 4. none
-	 */
 	async getFriendStatus(
 		currentUserId: string,
 		targetUserId: string,
 	): Promise<FriendStatus> {
-		/**
-		 * 自己和自己不存在好友状态。
-		 */
 		if (
 			currentUserId ===
 			targetUserId
@@ -147,11 +117,6 @@ export class FriendService {
 			return 'none';
 		}
 
-		/**
-		 * 如果目标用户不存在，
-		 * 返回 404，
-		 * 避免对不存在 userId 继续查询。
-		 */
 		const targetExists =
 			await this.userRepository
 				.existsById(
@@ -205,9 +170,6 @@ export class FriendService {
 	// Friend requests - list
 	// ============================================================
 
-	/**
-	 * 获取当前用户收到的 pending 申请。
-	 */
 	async listReceivedRequests(
 		currentUserId: string,
 	): Promise<FriendRequest[]> {
@@ -225,9 +187,6 @@ export class FriendService {
 		);
 	}
 
-	/**
-	 * 获取当前用户发出的 pending 申请。
-	 */
 	async listSentRequests(
 		currentUserId: string,
 	): Promise<FriendRequest[]> {
@@ -249,18 +208,6 @@ export class FriendService {
 	// Send friend request
 	// ============================================================
 
-	/**
-	 * 发送好友申请。
-	 *
-	 * POST /api/friends/requests
-	 *
-	 * Body:
-	 *
-	 * {
-	 *   "userId": "...",
-	 *   "message": "你好..."
-	 * }
-	 */
 	async sendFriendRequest(
 		currentUserId: string,
 		input: unknown,
@@ -292,9 +239,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 不允许添加自己。
-		 */
 		if (
 			currentUserId ===
 			targetUserId
@@ -305,9 +249,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 目标用户必须存在。
-		 */
 		const targetUser =
 			await this.userRepository
 				.findPublicById(
@@ -321,9 +262,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 已经是好友。
-		 */
 		if (
 			await this.friendRepository
 				.isFriend(
@@ -337,9 +275,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 当前用户已经发送过申请。
-		 */
 		const outgoing =
 			await this.friendRepository
 				.findPendingRequest(
@@ -354,12 +289,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 对方已经向当前用户发送申请。
-		 *
-		 * 这时不要再创建反向申请，
-		 * 应让用户去“收到的申请”中处理。
-		 */
 		const incoming =
 			await this.friendRepository
 				.findPendingRequest(
@@ -391,10 +320,6 @@ export class FriendService {
 				message,
 			});
 
-		/**
-		 * 创建完成后重新 JOIN users，
-		 * 返回 Flutter 可以直接使用的 DTO。
-		 */
 		const created =
 			await this.friendRepository
 				.findRequestWithUsers(
@@ -417,22 +342,10 @@ export class FriendService {
 	// Accept friend request
 	// ============================================================
 
-	/**
-	 * 接受好友申请。
-	 *
-	 * POST
-	 * /api/friends/requests/:requestId/accept
-	 */
 	async acceptFriendRequest(
 		currentUserId: string,
 		requestId: string,
 	): Promise<FriendRelation> {
-		/**
-		 * 必须满足：
-		 *
-		 * receiver_id == JWT currentUserId
-		 * status == pending
-		 */
 		const request =
 			await this.friendRepository
 				.findPendingReceivedRequest(
@@ -450,15 +363,7 @@ export class FriendService {
 		await this.friendRepository
 			.acceptRequest(
 				request,
-
-				/**
-				 * 当前用户 -> 申请发送者。
-				 */
 				generateId(),
-
-				/**
-				 * 申请发送者 -> 当前用户。
-				 */
 				generateId(),
 			);
 
@@ -485,14 +390,6 @@ export class FriendService {
 	// Reject friend request
 	// ============================================================
 
-	/**
-	 * 拒绝申请。
-	 *
-	 * 数据库不删除，
-	 * 而是：
-	 *
-	 * pending -> rejected
-	 */
 	async rejectFriendRequest(
 		currentUserId: string,
 		requestId: string,
@@ -530,12 +427,6 @@ export class FriendService {
 	// Cancel sent request
 	// ============================================================
 
-	/**
-	 * 当前用户撤回自己发送的申请。
-	 *
-	 * DELETE
-	 * /api/friends/requests/:requestId
-	 */
 	async cancelFriendRequest(
 		currentUserId: string,
 		requestId: string,
@@ -573,17 +464,6 @@ export class FriendService {
 	// Remark
 	// ============================================================
 
-	/**
-	 * 修改当前用户给某个好友设置的备注。
-	 *
-	 * PATCH /api/friends/:friendId
-	 *
-	 * Body:
-	 *
-	 * {
-	 *   "remark": "妈妈"
-	 * }
-	 */
 	async updateRemark(
 		currentUserId: string,
 		friendId: string,
@@ -604,13 +484,6 @@ export class FriendService {
 			);
 		}
 
-		/**
-		 * 允许空字符串：
-		 *
-		 * ""
-		 *
-		 * 表示清除备注。
-		 */
 		const remark =
 			body.remark.trim();
 
@@ -662,16 +535,6 @@ export class FriendService {
 	// Delete friend
 	// ============================================================
 
-	/**
-	 * 删除好友。
-	 *
-	 * DELETE /api/friends/:friendId
-	 *
-	 * 删除双方关系：
-	 *
-	 * current -> friend
-	 * friend -> current
-	 */
 	async removeFriend(
 		currentUserId: string,
 		friendId: string,
@@ -701,17 +564,6 @@ export class FriendService {
 	// Friend wardrobe
 	// ============================================================
 
-	/**
-	 * 查看好友衣柜。
-	 *
-	 * GET
-	 * /api/friends/:friendId/clothing
-	 *
-	 * 只允许：
-	 *
-	 * 1. 双方是好友
-	 * 2. visibility = public
-	 */
 	async listFriendClothing(
 		currentUserId: string,
 		friendId: string,
@@ -727,10 +579,6 @@ export class FriendService {
 
 		const filters:
 			ClothingListFilters = {
-			/**
-			 * 无论前端传什么，
-			 * 好友衣柜永远只看 public。
-			 */
 			visibility:
 				'public',
 		};
@@ -775,11 +623,6 @@ export class FriendService {
 		);
 	}
 
-	/**
-	 * 获取好友某一件公开衣物的数据库记录。
-	 *
-	 * 图片接口会调用这个方法做权限校验。
-	 */
 	async getFriendPublicClothing(
 		currentUserId: string,
 		friendId: string,
@@ -797,15 +640,6 @@ export class FriendService {
 					friendId,
 				);
 
-		/**
-		 * 这里把 private 衣物也统一返回 404。
-		 *
-		 * 不向好友暴露：
-		 *
-		 * “这件衣服其实存在，只是你没有权限”
-		 *
-		 * 这样的信息。
-		 */
 		if (
 			!clothing ||
 			clothing.visibility !==
@@ -824,10 +658,6 @@ export class FriendService {
 	// Authorization helper
 	// ============================================================
 
-	/**
-	 * 要求 currentUserId 与 friendId
-	 * 已经建立好友关系。
-	 */
 	private async requireFriendship(
 		currentUserId: string,
 		friendId: string,
@@ -861,9 +691,6 @@ export class FriendService {
 	// Mapping
 	// ============================================================
 
-	/**
-	 * D1 JOIN row -> Flutter FriendRelation
-	 */
 	private mapFriend(
 		row: FriendWithUserRow,
 	): FriendRelation {
@@ -883,11 +710,6 @@ export class FriendService {
 					'',
 			},
 
-			/**
-			 * DB nickname
-			 * ->
-			 * API remark
-			 */
 			remark:
 				row.nickname,
 
@@ -896,11 +718,6 @@ export class FriendService {
 		};
 	}
 
-	/**
-	 * friend_requests JOIN row
-	 * ->
-	 * Flutter FriendRequest。
-	 */
 	private mapRequest(
 		row: FriendRequestWithUsersRow,
 	): FriendRequest {
@@ -955,17 +772,7 @@ export class FriendService {
 
 	/**
 	 * 好友衣柜 DTO。
-	 *
-	 * 与普通 Clothing DTO 唯一重要区别：
-	 *
-	 * imageUrl 不再使用：
-	 *
-	 * /api/clothing/:id/image
-	 *
-	 * 因为那个接口要求 owner。
-	 *
 	 * 好友公开图片使用：
-	 *
 	 * /api/friends/:friendId/clothing/:id/image
 	 */
 	private mapFriendClothing(
@@ -979,8 +786,8 @@ export class FriendService {
 			ownerId:
 				row.owner_id,
 
-			name:
-				row.name,
+			location:
+				row.location,
 
 			brand:
 				row.brand,
@@ -1111,15 +918,6 @@ function parseOptionalFilter(
 // Error
 // ============================================================
 
-/**
- * Friend 模块统一业务异常。
- *
- * index.ts 会把它转换成：
- *
- * {
- *   "error": "..."
- * }
- */
 export class FriendServiceError
 	extends Error {
 	constructor(

@@ -23,7 +23,7 @@ export class ClothingRepository {
 				SELECT
 					id,
 					owner_id,
-					name,
+					location,
 					brand,
 					category,
 					color,
@@ -83,7 +83,7 @@ export class ClothingRepository {
 		if (filters.query) {
 			conditions.push(`
 				(
-					LOWER(name) LIKE ?
+					LOWER(location) LIKE ?
 					OR
 					LOWER(COALESCE(brand, '')) LIKE ?
 				)
@@ -102,7 +102,7 @@ export class ClothingRepository {
 			SELECT
 				id,
 				owner_id,
-				name,
+				location,
 				brand,
 				category,
 				color,
@@ -140,7 +140,7 @@ export class ClothingRepository {
 				INSERT INTO clothing (
 					id,
 					owner_id,
-					name,
+					location,
 					brand,
 					category,
 					color,
@@ -154,7 +154,7 @@ export class ClothingRepository {
 			.bind(
 				input.id,
 				input.ownerId,
-				input.name,
+				input.location,
 				input.brand,
 				input.category,
 				input.color,
@@ -179,7 +179,7 @@ export class ClothingRepository {
 			.prepare(`
 				UPDATE clothing
 				SET
-					name = ?,
+					location = ?,
 					brand = ?,
 					category = ?,
 					color = ?,
@@ -191,7 +191,7 @@ export class ClothingRepository {
 				  AND owner_id = ?
 			`)
 			.bind(
-				input.name,
+				input.location,
 				input.brand,
 				input.category,
 				input.color,
