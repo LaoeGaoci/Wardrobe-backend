@@ -48,6 +48,15 @@ export interface Env {
     string;
 
   /**
+   * Internal system-notification API secret.
+   *
+   * Used only by:
+   * POST /api/internal/notifications/system
+   */
+  SYSTEM_NOTIFICATION_SECRET:
+    string;
+
+  /**
    * Cloudflare Email Service.
    */
   EMAIL:

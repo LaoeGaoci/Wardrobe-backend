@@ -1,9 +1,9 @@
 import {
-	Hono,
+  Hono,
 } from 'hono';
 
 import type {
-	AppEnv,
+  AppEnv,
 } from './types/env';
 
 // ============================================================
@@ -11,47 +11,55 @@ import type {
 // ============================================================
 
 import authRoutes
-	from './routes/auth_routes';
+  from './routes/auth_routes';
 
 import userRoutes
-	from './routes/user_routes';
+  from './routes/user_routes';
 
 import {
-	clothingRoutes,
+  clothingRoutes,
 } from './routes/clothing_routes';
 
 import friendRoutes
-	from './routes/friend_routes';
+  from './routes/friend_routes';
 
 import recommendationRoutes
-	from './routes/recommendation_routes';
+  from './routes/recommendation_routes';
+
+import notificationRoutes, {
+  internalNotificationRoutes,
+} from './routes/notification_routes';
 
 // ============================================================
 // Service Errors
 // ============================================================
 
 import {
-	UserServiceError,
+  UserServiceError,
 } from './services/user_service';
 
 import {
-	ClothingServiceError,
+  ClothingServiceError,
 } from './services/clothing_service';
 
 import {
-	FriendServiceError,
+  FriendServiceError,
 } from './services/friend_service';
 
 import {
-	RecommendationServiceError,
+  RecommendationServiceError,
 } from './services/recommendation_service';
+
+import {
+  NotificationServiceError,
+} from './services/notification_service';
 
 // ============================================================
 // Utils
 // ============================================================
 
 import {
-	errorResponse,
+  errorResponse,
 } from './utils/response';
 
 // ============================================================
@@ -59,60 +67,45 @@ import {
 // ============================================================
 
 const app =
-	new Hono<AppEnv>();
+  new Hono<AppEnv>();
 
 // ============================================================
 // Register routes
 // ============================================================
 
-/**
- * 用户认证：
- *
- * /api/auth/*
- */
 app.route(
-	'/api/auth',
-	authRoutes,
+  '/api/auth',
+  authRoutes,
 );
 
-/**
- * 用户模块：
- *
- * /api/users/*
- */
 app.route(
-	'/api/users',
-	userRoutes,
+  '/api/users',
+  userRoutes,
 );
 
-/**
- * 当前用户自己的衣柜：
- *
- * /api/clothing/*
- */
 app.route(
-	'/api/clothing',
-	clothingRoutes,
+  '/api/clothing',
+  clothingRoutes,
 );
 
-/**
- * 好友系统：
- *
- * /api/friends/*
- */
 app.route(
-	'/api/friends',
-	friendRoutes,
+  '/api/friends',
+  friendRoutes,
 );
 
-/**
- * 推荐系统：
- *
- * /api/recommendations/*
- */
 app.route(
-	'/api/recommendations',
-	recommendationRoutes,
+  '/api/recommendations',
+  recommendationRoutes,
+);
+
+app.route(
+  '/api/notifications',
+  notificationRoutes,
+);
+
+app.route(
+  '/api/internal/notifications',
+  internalNotificationRoutes,
 );
 
 // ============================================================
@@ -120,10 +113,10 @@ app.route(
 // ============================================================
 
 app.notFound(() => {
-	return errorResponse(
-		'Not found',
-		404,
-	);
+  return errorResponse(
+    'Not found',
+    404,
+  );
 });
 
 // ============================================================
@@ -131,71 +124,66 @@ app.notFound(() => {
 // ============================================================
 
 app.onError(
-	(error) => {
-		/**
-		 * 推荐系统业务错误。
-		 */
-		if (
-			error instanceof
-			RecommendationServiceError
-		) {
-			return errorResponse(
-				error.message,
-				error.status,
-			);
-		}
+  (error) => {
+    if (
+      error instanceof
+      NotificationServiceError
+    ) {
+      return errorResponse(
+        error.message,
+        error.status,
+      );
+    }
 
-		/**
-		 * 好友模块业务错误。
-		 */
-		if (
-			error instanceof
-			FriendServiceError
-		) {
-			return errorResponse(
-				error.message,
-				error.status,
-			);
-		}
+    if (
+      error instanceof
+      RecommendationServiceError
+    ) {
+      return errorResponse(
+        error.message,
+        error.status,
+      );
+    }
 
-		/**
-		 * 衣柜模块业务错误。
-		 */
-		if (
-			error instanceof
-			ClothingServiceError
-		) {
-			return errorResponse(
-				error.message,
-				error.status,
-			);
-		}
+    if (
+      error instanceof
+      FriendServiceError
+    ) {
+      return errorResponse(
+        error.message,
+        error.status,
+      );
+    }
 
-		/**
-		 * 用户模块业务错误。
-		 */
-		if (
-			error instanceof
-			UserServiceError
-		) {
-			return errorResponse(
-				error.message,
-				error.status,
-			);
-		}
+    if (
+      error instanceof
+      ClothingServiceError
+    ) {
+      return errorResponse(
+        error.message,
+        error.status,
+      );
+    }
 
-		/**
-		 * 未知异常不要直接返回给客户端。
-		 */
-		console.error(
-			error,
-		);
+    if (
+      error instanceof
+      UserServiceError
+    ) {
+      return errorResponse(
+        error.message,
+        error.status,
+      );
+    }
 
-		return errorResponse(
-			'Internal server error',
-			500,
-		);
-	},
+    console.error(
+      error,
+    );
+
+    return errorResponse(
+      'Internal server error',
+      500,
+    );
+  },
 );
 
 export default app;
