@@ -50,7 +50,10 @@
     "required": [
       "AUTH_SECRET",
       "VERIFICATION_SECRET",
-      "SYSTEM_NOTIFICATION_SECRET"
+      "SYSTEM_NOTIFICATION_SECRET",
+      "FCM_PROJECT_ID",
+      "FCM_CLIENT_EMAIL",
+      "FCM_PRIVATE_KEY"
     ]
   }
 }

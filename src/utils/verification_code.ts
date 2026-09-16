@@ -1,6 +1,6 @@
 import type {
   VerificationPurpose,
-} from '../types/verification_code';
+} from '../types/user/verification_code';
 
 const encoder =
   new TextEncoder();
