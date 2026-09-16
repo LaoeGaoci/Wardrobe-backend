@@ -8,7 +8,7 @@ import type {
 
 import {
   UserRepository,
-} from '../repositories/user_repository';
+} from '../repositories/user/user_repository';
 
 import {
   verifyAccessToken,
