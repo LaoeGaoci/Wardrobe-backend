@@ -44,5 +44,13 @@
       "pattern": "api.laoegaoci.win",
       "custom_domain": true
     }
-  ]
+  ],
+
+  "secrets": {
+    "required": [
+      "AUTH_SECRET",
+      "VERIFICATION_SECRET",
+      "SYSTEM_NOTIFICATION_SECRET"
+    ]
+  }
 }

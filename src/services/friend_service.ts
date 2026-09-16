@@ -318,6 +318,9 @@ export class FriendService {
 					targetUserId,
 
 				message,
+
+				notificationId:
+					generateId(),
 			});
 
 		const created =
@@ -643,7 +646,7 @@ export class FriendService {
 		if (
 			!clothing ||
 			clothing.visibility !==
-				'public'
+			'public'
 		) {
 			throw new FriendServiceError(
 				'Clothing not found',

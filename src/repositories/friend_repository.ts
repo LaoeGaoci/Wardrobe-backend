@@ -8,7 +8,7 @@ import type {
 export class FriendRepository {
 	constructor(
 		private readonly db: D1Database,
-	) {}
+	) { }
 
 	// ============================================================
 	// Friendships
@@ -527,10 +527,12 @@ export class FriendRepository {
 			senderId: string;
 			receiverId: string;
 			message: string;
+			notificationId: string;
 		},
 	): Promise<void> {
-		await this.db
-			.prepare(`
+		await this.db.batch([
+			this.db
+				.prepare(`
 				INSERT INTO friend_requests (
 					id,
 					sender_id,
@@ -538,15 +540,45 @@ export class FriendRepository {
 					message,
 					status
 				)
-				VALUES (?, ?, ?, ?, 'pending')
+				VALUES (
+					?,
+					?,
+					?,
+					?,
+					'pending'
+				)
 			`)
-			.bind(
-				input.id,
-				input.senderId,
-				input.receiverId,
-				input.message,
-			)
-			.run();
+				.bind(
+					input.id,
+					input.senderId,
+					input.receiverId,
+					input.message,
+				),
+
+			this.db
+				.prepare(`
+				INSERT INTO notifications (
+					id,
+					receiver_id,
+					type,
+					resource_id,
+					sender_id
+				)
+				VALUES (
+					?,
+					?,
+					'friend_request',
+					?,
+					?
+				)
+			`)
+				.bind(
+					input.notificationId,
+					input.receiverId,
+					input.id,
+					input.senderId,
+				),
+		]);
 	}
 
 	/**
@@ -615,6 +647,22 @@ export class FriendRepository {
 				.bind(
 					secondFriendshipId,
 					request.sender_id,
+					request.receiver_id,
+				),
+			this.db
+				.prepare(`
+					UPDATE notifications
+					SET read_at =
+						COALESCE(
+							read_at,
+							CURRENT_TIMESTAMP
+						)
+					WHERE type = 'friend_request'
+					AND resource_id = ?
+					AND receiver_id = ?
+				`)
+				.bind(
+					request.id,
 					request.receiver_id,
 				),
 		]);
